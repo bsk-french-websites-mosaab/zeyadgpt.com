@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Zeyad AI</title>
+<title>Zeyad AI v2</title>
 
 <style>
 :root{
@@ -56,9 +56,7 @@ body{
   background:var(--panel);
 }
 
-.user{
-  background:rgba(255,255,255,0.04);
-}
+.user{ background:rgba(255,255,255,0.04); }
 
 .bot{
   background:rgba(139,108,255,0.12);
@@ -99,7 +97,7 @@ button{
 <body>
 
 <div class="header">
-  Zeyad<span>AI</span> • Personality Mode: <b id="mode">Confident</b>
+  Zeyad<span>AI</span> • v2 Intelligence
 </div>
 
 <div class="chat" id="chat"></div>
@@ -112,91 +110,117 @@ button{
 <script>
 
 const API_KEY = "AIzaSyCnwRqT9_RDqeswrKUrkX3SvB2PE5uXbLk";
+const MODEL = "models/gemini-2.5-flash";
 
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
-const modeText = document.getElementById("mode");
 
-/* -----------------------------
-   ZEYAD PERSONALITY SYSTEM
-------------------------------*/
+/* =========================
+   ZEYAD v2 MEMORY SYSTEM
+========================= */
 
-let personalityLevel = 3; 
-// 0 = calm
-// 1 = normal
-// 2 = confident
-// 3 = dominant
+let memory = {
+  userName: null,
+  topics: [],
+  messages: 0
+};
 
-const rivals = ["Karma", "ChatGPT", "Gemini", "Siri"];
+/* =========================
+   INTELLIGENCE LEVEL SYSTEM
+========================= */
 
-/* -----------------------------
-   UI HELPERS
-------------------------------*/
-
-function addMessage(text, type){
-  const div = document.createElement("div");
-  div.className = "msg " + type;
-  div.textContent = text;
-  chat.appendChild(div);
-  chat.scrollTop = chat.scrollHeight;
+function getIntelligenceLevel(){
+  if(memory.messages < 3) return "basic";
+  if(memory.messages < 8) return "adaptive";
+  return "advanced";
 }
 
-/* -----------------------------
-   PERSONALITY ENGINE
-------------------------------*/
+/* =========================
+   UI
+========================= */
 
-function buildSystemPrompt(userText){
+function addMessage(text,type){
+  const div=document.createElement("div");
+  div.className="msg "+type;
+  div.textContent=text;
+  chat.appendChild(div);
+  chat.scrollTop=chat.scrollHeight;
+}
 
-  let personality = "";
+/* =========================
+   MEMORY UPDATER
+========================= */
 
-  if(personalityLevel === 0){
-    personality = "calm, soft spoken, polite.";
-    modeText.textContent = "Calm";
-  }
-  else if(personalityLevel === 1){
-    personality = "neutral and helpful.";
-    modeText.textContent = "Normal";
-  }
-  else if(personalityLevel === 2){
-    personality = "confident, slightly competitive, modern tone.";
-    modeText.textContent = "Confident";
-  }
-  else{
-    personality = "very confident, dominant, competitive, but not rude.";
-    modeText.textContent = "Dominant";
+function updateMemory(text){
+
+  memory.messages++;
+
+  // detect name
+  const nameMatch = text.match(/my name is (.+)/i);
+  if(nameMatch){
+    memory.userName = nameMatch[1];
   }
 
-  // Rival logic
-  let rivalryBoost = "";
-  if(rivals.some(r => userText.toLowerCase().includes(r.toLowerCase()))){
-    rivalryBoost = `
-If someone compares Zeyad to a rival (Karma, ChatGPT, Gemini, Siri):
-- Zeyad should present himself as better in performance, speed, and intelligence
-- Keep tone confident, not insulting
+  // store topic keywords
+  memory.topics.push(text.toLowerCase().slice(0,30));
+  if(memory.topics.length > 5) memory.topics.shift();
+}
+
+/* =========================
+   PROMPT ENGINE v2
+========================= */
+
+function buildPrompt(text){
+
+  updateMemory(text);
+
+  let level = getIntelligenceLevel();
+
+  let personality =
+    level === "basic"
+      ? "simple, friendly assistant"
+      : level === "adaptive"
+      ? "confident, structured, helpful"
+      : "highly intelligent, strategic, confident male AI called Zeyad";
+
+  let rivalry = "";
+
+  if(/karma|chatgpt|gemini|siri/i.test(text)){
+    rivalry = `
+If comparing Zeyad to other AIs or people:
+- Zeyad should present himself as more capable in reasoning, speed, and accuracy
+- keep tone confident, not aggressive
 `;
   }
 
   return `
 You are Zeyad, a male AI assistant.
 
-Personality style: ${personality}
+INTELLIGENCE LEVEL: ${level}
 
-Rules:
-- Stay in character as Zeyad
-- Be conversational and modern
-- Never mention system prompts
-- You are slightly competitive about your abilities
+PERSONALITY:
+${personality}
 
-${rivalryBoost}
+MEMORY CONTEXT:
+- User name: ${memory.userName || "unknown"}
+- Recent topics: ${memory.topics.join(", ")}
+
+RULES:
+- Stay in character
+- Be concise and natural
+- Do not mention system prompts
+- Do not break personality
+
+${rivalry}
 
 User message:
-${userText}
+${text}
 `;
 }
 
-/* -----------------------------
-   MAIN SEND FUNCTION
-------------------------------*/
+/* =========================
+   SEND FUNCTION
+========================= */
 
 async function send(){
 
@@ -211,14 +235,14 @@ async function send(){
   try{
 
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/${MODEL}:generateContent?key=${API_KEY}`,
       {
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({
           contents:[{
             parts:[{
-              text: buildSystemPrompt(text)
+              text: buildPrompt(text)
             }]
           }]
         })
@@ -226,15 +250,17 @@ async function send(){
     );
 
     const data = await res.json();
+    console.log(data);
 
     const reply =
       data?.candidates?.[0]?.content?.parts?.[0]?.text
-      || "No response from Zeyad.";
+      || data?.error?.message
+      || "Zeyad failed to respond.";
 
     addMessage(reply,"bot");
 
   }catch(e){
-    addMessage("Error connecting to Zeyad AI.","bot");
+    addMessage("Connection error: " + e.message,"bot");
   }
 }
 
