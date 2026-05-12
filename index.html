@@ -563,7 +563,7 @@ async function generateResponse(message){
                 temperature:0.9,
                 topP:0.95,
                 topK:40,
-                maxOutputTokens:300
+                maxOutputTokens:3000
               }
 
             })
@@ -599,9 +599,24 @@ async function generateResponse(message){
           data.error.message;
       }
 
-      const text =
+      let text = "";
+      
+      if(
         data?.candidates?.[0]
-        ?.content?.parts?.[0]?.text;
+        ?.content?.parts
+      ){
+      
+        for(
+          const part of
+          data.candidates[0].content.parts
+        ){
+      
+          if(part.text){
+      
+            text += part.text;
+          }
+        }
+      }
 
       if(text){
 
@@ -609,7 +624,7 @@ async function generateResponse(message){
 
         updateModelUI();
 
-        return text.trim();
+        return String(text).trim();
       }
 
     }catch(err){
