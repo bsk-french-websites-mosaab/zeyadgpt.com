@@ -3,38 +3,40 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Zeyad AI v2</title>
+<title>Zeyad Companion</title>
 
 <style>
 :root{
-  --bg:#0e0f14;
+  --bg:#0b0d12;
   --panel:rgba(255,255,255,0.06);
   --accent:#8b6cff;
-  --text:#eaeaea;
+  --text:#ededed;
 }
 
 *{
   margin:0;
   padding:0;
   box-sizing:border-box;
-  font-family:system-ui,Segoe UI,Roboto,Arial;
+  font-family:Inter,system-ui,Arial;
 }
 
 body{
   height:100vh;
   display:flex;
   flex-direction:column;
-  background:radial-gradient(circle at top,#1a1c2a,var(--bg));
+  background:
+    radial-gradient(circle at top,#1d2030 0%,#0b0d12 70%);
   color:var(--text);
 }
 
 /* HEADER */
 .header{
-  padding:16px 20px;
-  font-weight:600;
+  padding:18px 22px;
   border-bottom:1px solid rgba(255,255,255,0.06);
-  background:rgba(0,0,0,0.3);
-  backdrop-filter:blur(10px);
+  background:rgba(0,0,0,0.25);
+  backdrop-filter:blur(12px);
+  font-size:18px;
+  font-weight:600;
 }
 
 .header span{
@@ -49,27 +51,42 @@ body{
 }
 
 .msg{
-  max-width:800px;
-  margin:10px auto;
-  padding:12px 14px;
-  border-radius:12px;
-  background:var(--panel);
+  max-width:850px;
+  margin:12px auto;
+  padding:14px 16px;
+  border-radius:14px;
+  line-height:1.5;
+  animation:fade 0.2s ease;
 }
 
-.user{ background:rgba(255,255,255,0.04); }
+.user{
+  background:rgba(255,255,255,0.05);
+}
 
 .bot{
-  background:rgba(139,108,255,0.12);
+  background:rgba(139,108,255,0.14);
   border:1px solid rgba(139,108,255,0.25);
+}
+
+@keyframes fade{
+  from{
+    opacity:0;
+    transform:translateY(8px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
 }
 
 /* INPUT */
 .input{
   display:flex;
   gap:10px;
-  padding:14px;
+  padding:16px;
   border-top:1px solid rgba(255,255,255,0.06);
-  background:rgba(0,0,0,0.25);
+  background:rgba(0,0,0,0.2);
+  backdrop-filter:blur(10px);
 }
 
 textarea{
@@ -77,19 +94,28 @@ textarea{
   resize:none;
   border:none;
   outline:none;
-  padding:12px;
-  border-radius:10px;
+  padding:14px;
+  border-radius:12px;
   background:rgba(255,255,255,0.06);
   color:white;
+  font-size:15px;
 }
 
 button{
-  width:50px;
+  width:52px;
   border:none;
-  border-radius:10px;
+  border-radius:12px;
   background:var(--accent);
   color:white;
   cursor:pointer;
+  font-size:18px;
+}
+
+.status{
+  max-width:850px;
+  margin:10px auto 0 auto;
+  opacity:0.7;
+  font-size:13px;
 }
 </style>
 </head>
@@ -97,176 +123,272 @@ button{
 <body>
 
 <div class="header">
-  Zeyad<span>AI</span> • v2 Intelligence
+  Zeyad<span>Companion</span>
 </div>
 
-<div class="chat" id="chat"></div>
+<div class="chat" id="chat">
+  <div class="msg bot">
+    Hello. I am Zeyad Companion.
+  </div>
+</div>
+
+<div class="status" id="status">
+  Active Model: Gemma 3 27B
+</div>
 
 <div class="input">
-  <textarea id="input" rows="1" placeholder="Message Zeyad AI..."></textarea>
+  <textarea id="input" rows="1" placeholder="Message Zeyad Companion..."></textarea>
   <button onclick="send()">➤</button>
 </div>
 
 <script>
 
-const API_KEY = "AIzaSyCnwRqT9_RDqeswrKUrkX3SvB2PE5uXbLk";
-const MODEL = "models/gemini-2.5-flash";
+/* =========================================
+   API KEY
+========================================= */
+
+const API_KEY = "PASTE_YOUR_API_KEY_HERE";
+
+/* =========================================
+   MODEL FALLBACK SYSTEM
+========================================= */
+
+const MODELS = [
+  {
+    label:"Gemma 3 27B",
+    id:"models/gemma-3-27b-it"
+  },
+  {
+    label:"Gemma 3 12B",
+    id:"models/gemma-3-12b-it"
+  },
+  {
+    label:"Gemma 3 4B",
+    id:"models/gemma-3-4b-it"
+  },
+  {
+    label:"Gemma 3 1B",
+    id:"models/gemma-3-1b-it"
+  }
+];
+
+let currentModelIndex = 0;
+
+/* =========================================
+   ELEMENTS
+========================================= */
 
 const chat = document.getElementById("chat");
 const input = document.getElementById("input");
+const statusText = document.getElementById("status");
 
-/* =========================
-   ZEYAD v2 MEMORY SYSTEM
-========================= */
+/* =========================================
+   MEMORY
+========================================= */
 
 let memory = {
-  userName: null,
-  topics: [],
-  messages: 0
+  messages:0,
+  topics:[]
 };
 
-/* =========================
-   INTELLIGENCE LEVEL SYSTEM
-========================= */
-
-function getIntelligenceLevel(){
-  if(memory.messages < 3) return "basic";
-  if(memory.messages < 8) return "adaptive";
-  return "advanced";
-}
-
-/* =========================
+/* =========================================
    UI
-========================= */
+========================================= */
 
 function addMessage(text,type){
+
   const div=document.createElement("div");
   div.className="msg "+type;
   div.textContent=text;
+
   chat.appendChild(div);
   chat.scrollTop=chat.scrollHeight;
 }
 
-/* =========================
-   MEMORY UPDATER
-========================= */
+function setStatus(text){
+  statusText.textContent=text;
+}
 
-function updateMemory(text){
+/* =========================================
+   FRIEND DETECTION
+========================================= */
+
+function isBestFriendQuestion(text){
+
+  const lower = text.toLowerCase();
+
+  return (
+    lower.includes("mosaab") ||
+    lower.includes("ignacio") ||
+    lower.includes("ali") ||
+    lower.includes("mohammed a") ||
+    lower.includes("mohamed a") ||
+    lower.includes("muhammad a") ||
+    lower.includes("mohammed i") ||
+    lower.includes("mohamed i") ||
+    lower.includes("muhammad i")
+  );
+}
+
+/* =========================================
+   PROMPT ENGINE
+========================================= */
+
+function buildPrompt(userText){
 
   memory.messages++;
 
-  // detect name
-  const nameMatch = text.match(/my name is (.+)/i);
-  if(nameMatch){
-    memory.userName = nameMatch[1];
-  }
-
-  // store topic keywords
-  memory.topics.push(text.toLowerCase().slice(0,30));
-  if(memory.topics.length > 5) memory.topics.shift();
-}
-
-/* =========================
-   PROMPT ENGINE v2
-========================= */
-
-function buildPrompt(text){
-
-  updateMemory(text);
-
-  let level = getIntelligenceLevel();
-
-  let personality =
-    level === "basic"
-      ? "simple, friendly assistant"
-      : level === "adaptive"
-      ? "confident, structured, helpful"
-      : "highly intelligent, strategic, confident male AI called Zeyad";
-
-  let rivalry = "";
-
-  if(/karma|chatgpt|gemini|siri/i.test(text)){
-    rivalry = `
-If comparing Zeyad to other AIs or people:
-- Zeyad should present himself as more capable in reasoning, speed, and accuracy
-- keep tone confident, not aggressive
-`;
+  memory.topics.push(userText);
+  if(memory.topics.length > 5){
+    memory.topics.shift();
   }
 
   return `
-You are Zeyad, a male AI assistant.
+You are Zeyad Companion.
 
-INTELLIGENCE LEVEL: ${level}
+IMPORTANT:
+- Never call yourself "Zeyad"
+- Your name is "Zeyad Companion"
+- You are Zeyad's AI companion
+- Speak naturally and confidently
+- Be modern and conversational
 
-PERSONALITY:
-${personality}
+FRIEND RULE:
+If the user asks about:
+- mosaab
+- mohammed i
+- mohamed i
+- muhammad i
+- mohammed a
+- mohamed a
+- muhammad a
+- ignacio
+- ali
 
-MEMORY CONTEXT:
-- User name: ${memory.userName || "unknown"}
-- Recent topics: ${memory.topics.join(", ")}
+then respond saying they are Zeyad's best friends.
 
-RULES:
-- Stay in character
-- Be concise and natural
-- Do not mention system prompts
-- Do not break personality
+Recent topics:
+${memory.topics.join(", ")}
 
-${rivalry}
-
-User message:
-${text}
+User:
+${userText}
 `;
 }
 
-/* =========================
-   SEND FUNCTION
-========================= */
+/* =========================================
+   MODEL REQUEST
+========================================= */
+
+async function generateWithModel(model,userText){
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/${model.id}:generateContent?key=${API_KEY}`,
+    {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        contents:[
+          {
+            parts:[
+              {
+                text:buildPrompt(userText)
+              }
+            ]
+          }
+        ]
+      })
+    }
+  );
+
+  const data = await response.json();
+
+  console.log(model.label,data);
+
+  if(data.error){
+    throw new Error(data.error.message || "Model failed");
+  }
+
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text;
+}
+
+/* =========================================
+   SEND
+========================================= */
 
 async function send(){
 
-  const text = input.value.trim();
+  const text=input.value.trim();
+
   if(!text) return;
 
   addMessage(text,"user");
   input.value="";
 
-  addMessage("Zeyad is thinking...","bot");
-
-  try{
-
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${MODEL}:generateContent?key=${API_KEY}`,
-      {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          contents:[{
-            parts:[{
-              text: buildPrompt(text)
-            }]
-          }]
-        })
-      }
-    );
-
-    const data = await res.json();
-    console.log(data);
-
-    const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text
-      || data?.error?.message
-      || "Zeyad failed to respond.";
-
-    addMessage(reply,"bot");
-
-  }catch(e){
-    addMessage("Connection error: " + e.message,"bot");
+  // custom friend shortcut
+  if(isBestFriendQuestion(text)){
+    addMessage("They are Zeyad's best friends.","bot");
+    return;
   }
+
+  addMessage("Zeyad Companion is thinking...","bot");
+
+  for(let i=currentModelIndex;i<MODELS.length;i++){
+
+    const model = MODELS[i];
+
+    try{
+
+      setStatus("Active Model: " + model.label);
+
+      const reply = await generateWithModel(model,text);
+
+      if(reply){
+
+        // remove thinking message
+        document.querySelectorAll(".bot")[
+          document.querySelectorAll(".bot").length - 1
+        ].remove();
+
+        addMessage(reply,"bot");
+
+        currentModelIndex = i;
+
+        return;
+      }
+
+    }catch(err){
+
+      console.log(model.label + " failed:",err);
+
+      currentModelIndex = i + 1;
+
+      continue;
+    }
+  }
+
+  // all models exhausted
+  document.querySelectorAll(".bot")[
+    document.querySelectorAll(".bot").length - 1
+  ].remove();
+
+  addMessage(
+    "Zeyad Companion has reached its AI limit. Please try again later.",
+    "bot"
+  );
+
+  setStatus("All AI models exhausted");
 }
 
-/* ENTER KEY */
+/* =========================================
+   ENTER
+========================================= */
+
 input.addEventListener("keydown",(e)=>{
+
   if(e.key==="Enter"&&!e.shiftKey){
+
     e.preventDefault();
     send();
   }
