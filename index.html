@@ -159,16 +159,42 @@ body{
 
 .select{
   width:100%;
-  padding:14px;
-  border:none;
-  outline:none;
+  padding:14px 16px;
 
   border-radius:16px;
 
-  background:var(--glass2);
-  color:white;
+  background:rgba(17,24,39,0.85);
+  backdrop-filter:blur(20px);
 
-  border:1px solid var(--border);
+  color:#f3f4f6;
+
+  border:1px solid rgba(255,255,255,0.08);
+
+  outline:none;
+
+  appearance:none;
+  -webkit-appearance:none;
+  -moz-appearance:none;
+
+  cursor:pointer;
+
+  font-size:14px;
+
+  transition:0.2s;
+}
+
+.select:hover{
+  border-color:rgba(139,92,246,0.45);
+}
+
+.select:focus{
+  border-color:#8b5cf6;
+  box-shadow:0 0 0 4px rgba(139,92,246,0.12);
+}
+
+.select option{
+  background:#111827;
+  color:#f3f4f6;
 }
 
 .model-info{
