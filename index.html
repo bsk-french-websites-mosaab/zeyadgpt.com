@@ -517,7 +517,7 @@ textarea{
     </select>
 
     <div class="model-info" id="modelInfo">
-      Messages Left: ∞
+      Status: Available
     </div>
 
   </div>
@@ -619,12 +619,12 @@ const API_KEY =
    MODELS
 ========================= */
 
-const MODEL_LIMITS = {
+const MODEL_STATUS = {
 
-  "gemini-2.5-flash-lite":14400,
-  "gemini-2.5-flash":3000,
-  "gemini-3.1-flash-lite":2000,
-  "gemini-3.1-flash":1000
+  "gemini-2.5-flash-lite":"Available",
+  "gemini-2.5-flash":"Available",
+  "gemini-3.1-flash-lite":"Available",
+  "gemini-3.1-flash":"Available"
 
 };
 
@@ -700,7 +700,7 @@ function updateModelUI(){
   MODEL_LIMITS[currentModel];
 
   modelInfo.innerHTML =
-  `Messages Left: ${left}`;
+  `Status: ${status}`;
 }
 
 updateModelUI();
@@ -993,19 +993,6 @@ Final response:
 
 async function askAI(message){
 
-  if(
-    MODEL_LIMITS[currentModel]
-    <= 0
-  ){
-
-    openPopup();
-
-    return null;
-  }
-
-  MODEL_LIMITS[currentModel]--;
-
-  updateModelUI();
 
   try{
 
@@ -1052,9 +1039,17 @@ async function askAI(message){
 
     console.log(data);
 
-    if(
-      response.status === 429
-    ){
+    if(response.status === 429){
+    
+      MODEL_STATUS[currentModel] =
+      "Quota Exhausted";
+    
+      updateModelUI();
+    
+      openPopup();
+    
+      return null;
+    }
 
       openPopup();
 
